@@ -1,0 +1,305 @@
+const express = require("express");
+const { Client } = require("pg");
+const app = express();
+const port = 3000;
+const bodyParser = require("body-parser");
+// send the json data to server in neat object
+app.use(express.urlencoded({ extended: true }));
+
+const client = new Client({
+  user: "postgres",
+  host: "localhost",
+  database: "postgres",
+  password: "Nitin@1234#",
+  port: 5432,
+});
+app.use(express.json());
+client
+  .connect()
+  .then(() => console.log("Connected to pg"))
+  .catch(() => console.log("Error to Connect pg"));
+
+async function Tables() {
+  try {
+    await client.query(`
+          create table if not exists users(
+          id serial primary key,
+          username varchar(20)unique not null,
+          email varchar(20) unique not null,
+          password varchar(20) not null
+        );`);
+
+    await client.query(`
+            create table if not exists roles(
+                id serial primary key,
+                role_name varchar(20) unique not null
+            );`);
+
+    await client.query(`
+        create table if not exists Permissions(
+            id serial primary key ,
+            Permissions_name varchar (20) unique not null 
+        );`);
+
+    await client.query(`
+            create table if not exists user_role(
+                user_id integer references  users(id),
+                role_id integer references roles(id),
+                primary key(user_id,role_id)
+            );`);
+
+    await client.query(`
+            create table if not exists RolePermission(
+                role_id integer references roles(id),
+                Permission_id integer references Permissions(id),
+                primary key (role_id,Permission_id)
+
+            );`);
+
+    await client.query(`
+            create table if not exists groups (
+                id serial primary key,
+                group_name varchar(20) unique not null
+            );`);
+
+    await client.query(`
+            create table if not exists group_permission(
+                group_id integer references groups(id),
+                Permission_id integer references Permissions(id),
+                primary key (group_id,Permission_id)
+            );`);
+
+    await client.query(`
+            create table if not exists usergroup (
+                user_id integer references users(id),
+                group_id integer references groups(id),
+                primary key (user_id , group_id)
+            );`);
+
+    console.log("tables created");
+  } catch (err) {
+    console.log("error" + err);
+  }
+}
+Tables();
+
+// inserting user data
+app.post("/api/users", async (req, res) => {
+  // const data= {
+  //     name:req.body.name,
+  //     email:req.body.email,
+  //     password:req.body.password
+  // }
+
+  const { username, email, password } = req.body;
+  //   if (!username || !email || !password) {
+  //     console.log("username,email, password are required");
+  //   }
+
+  try {
+    const result = await client.query(
+      "insert into users ( username, email, password ) VALUES ($1, $2, $3)",
+      [username, email, password]
+    );
+    res.json(result);
+    console.log("Data inserted");
+  } catch (err) {
+    console.log("error" + err);
+  }
+});
+// inserting roles data
+app.post("/api/roles", async (req, res) => {
+  console.log(req.body);
+  const role_name = req.body.role_name;
+  console.log(role_name);
+  try {
+    const result = await client.query(
+      "insert into roles ( role_name ) VALUES ($1) ",
+      [role_name]
+    );
+    res.json(result);
+    console.log("Data inserted");
+  } catch (err) {
+    console.log("error" + err);
+  }
+});
+
+// inserting Permissions data
+
+app.post("/api/permissions", async (req, res) => {
+  const Permissions_name = req.body.Permissions_name;
+
+  try {
+    const result = await client.query(
+      "insert into Permissions (Permissions_name) values($1)",
+      [Permissions_name]
+    );
+    res.json(result);
+    console.log("Data inserted");
+  } catch (err) {
+    console.log("error" + err);
+  }
+});
+
+// inserting user_role data
+app.post("/api/user_role", async (req, res) => {
+  const { user_id, role_id } = req.body;
+  try {
+    const result = await client.query(
+      "insert into user_role(user_id,role_id) values($1,$2)",
+      [user_id, role_id]
+    );
+    res.json(result);
+    console.log("Data inserted");
+  } catch (err) {
+    console.log("error" + err);
+  }
+});
+
+// inserting RolePermission data
+
+app.post("/api/RolePermission", async (req, res) => {
+  const { role_id, Permission_id } = req.body;
+  try {
+    const result = await client.query(
+      "insert into RolePermission (role_id,Permission_id) values ($1,$2)",
+      [role_id, Permission_id]
+    );
+    res.json(result);
+    console.log("Data inserted");
+  } catch (err) {
+    console.log("error" + err);
+  }
+});
+
+// inserting groups data
+
+app.post("/api/groups", async (req, res) => {
+  const { group_name } = req.body;
+  try {
+    const result = await client.query(
+      "insert into groups (group_name) values ($1)",
+      [group_name]
+    );
+    res.json(result);
+    console.log("Data inserted");
+  } catch (err) {
+    console.log("error" + err);
+  }
+});
+
+// inserting group_permission data
+
+app.post("/api/group_permission", async (req, res) => {
+  const { group_id, Permission_id } = req.body;
+  try {
+    const result = await client.query(
+      "insert into group_permission (group_id,Permission_id) values ($1,$2)",
+      [group_id, Permission_id]
+    );
+    res.json(result);
+    console.log("Data inserted");
+  } catch (err) {
+    console.log("error" + err);
+  }
+});
+
+// inserting usergroup data
+
+app.post("/api/usergroup", async (req, res) => {
+  const { user_id, group_id } = req.body;
+  try {
+    const result = await client.query(
+      "insert into usergroup (user_id,group_id) values ($1,$2)",
+      [user_id, group_id]
+    );
+    res.json(result);
+    console.log("Data inserted");
+  } catch (err) {
+    console.log("error" + err);
+  }
+});
+
+// fetching  data from users table
+app.get("/api/users", async (req, res) => {
+  try {
+    const result = await client.query("select * from users");
+    res.json(result.rows);
+  } catch (err) {
+    console.log("Error:  " + err);
+  }
+});
+
+// fetching  data from roles table
+app.get("/api/roles", async (req, res) => {
+  try {
+    const result = await client.query("select * from roles");
+    res.json(result.rows);
+  } catch (err) {
+    console.log("Error:  " + err);
+  }
+});
+
+// fetching  data from Permissions table
+app.get("/api/Permissions", async (req, res) => {
+  try {
+    const result = await client.query("select * from Permissions");
+    res.json(result.rows);
+  } catch (err) {
+    console.log("Error:  " + err);
+  }
+});
+
+// fetching  data from user_role table
+app.get("/api/user_role", async (req, res) => {
+  try {
+    const result = await client.query("select * from user_role");
+    res.json(result.rows);
+  } catch (err) {
+    console.log("Error:  " + err);
+  }
+});
+
+// fetching  data from RolePermission table
+app.get("/api/RolePermission", async (req, res) => {
+  try {
+    const result = await client.query("select * from RolePermission");
+    res.json(result.rows);
+  } catch (err) {
+    console.log("Error:  " + err);
+  }
+});
+
+// fetching  data from groups table
+app.get("/api/groups", async (req, res) => {
+  try {
+    const result = await client.query("select * from groups");
+    res.json(result.rows);
+  } catch (err) {
+    console.log("Error:  " + err);
+  }
+});
+
+// fetching  data from group_permission table
+app.get("/api/group_permission", async (req, res) => {
+  try {
+    const result = await client.query("select * from group_permission");
+    res.json(result.rows);
+  } catch (err) {
+    console.log("Error:  " + err);
+  }
+});
+
+// fetching  data from usergroup table
+app.get("/api/usergroup", async (req, res) => {
+  try {
+    const result = await client.query("select * from usergroup");
+    res.json(result.rows);
+  } catch (err) {
+    console.log("Error:  " + err);
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
+});
